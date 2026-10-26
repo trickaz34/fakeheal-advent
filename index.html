@@ -6,17 +6,57 @@
   <title>Calendrier de l'Avent · Fakeheal66</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Mr+Dafoe&family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Décor synthwave : ciel, étoiles, soleil rétro, sol en grille, sapins néon, traîneau -->
+  <div class="scene" aria-hidden="true">
+    <div class="stars"><div class="stars-layer"></div><div class="stars-layer"></div></div>
+    <div class="sun-glow"></div>
+    <div class="sun"></div>
+    <div class="floor">
+      <svg class="floor-fan" id="floor-fan" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+      <i class="floor-line"></i><i class="floor-line"></i><i class="floor-line"></i><i class="floor-line"></i>
+      <i class="floor-line"></i><i class="floor-line"></i><i class="floor-line"></i><i class="floor-line"></i>
+    </div>
+    <div class="horizon"></div>
+    <svg class="trees trees-left" id="trees-left" viewBox="0 0 420 300" preserveAspectRatio="xMinYMax meet"></svg>
+    <svg class="trees trees-right" id="trees-right" viewBox="0 0 420 300" preserveAspectRatio="xMaxYMax meet"></svg>
+    <div class="sleigh">
+      <div class="sleigh-bob">
+        <svg viewBox="0 0 300 60" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <defs>
+            <filter id="sleigh-glow" x="-20%" y="-50%" width="140%" height="200%">
+              <feGaussianBlur stdDeviation="2.2" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <g filter="url(#sleigh-glow)" stroke-width="2.4">
+            <!-- traîneau + Père Noël -->
+            <path stroke="#ff2a6d" d="M6 20h12l6 10h38q8 0 10-8 1-5-2-6"/>
+            <path stroke="#ffd319" d="M4 40h62q10 0 10-8M22 31l-3 9M54 31l-2 9"/>
+            <path stroke="#ff2a6d" d="M30 28q-2-11 5-11t5 11"/>
+            <circle stroke="#fdf7ff" cx="35" cy="12" r="4"/>
+            <path stroke="#ff2a6d" d="M31 9l7-6 3 5"/>
+            <!-- rênes -->
+            <path stroke="#ffd319" stroke-width="1.4" d="M72 22L118 27M72 22L183 27M72 22L248 27"/>
+            <!-- rennes -->
+            <g stroke="#fdf7ff">
+              <path d="M100 30q5-8 20-8h18q8 0 10 6l6-12h6l-4 5-6 9q-4 6-12 6h-20q-14 0-18-6zM112 36l-8 10M118 36l-4 11M136 36l8 9M142 35l8 7M154 16l-2-8M153 11l-4-2M156 15l4-8M158 11l4-1"/>
+              <path d="M165 30q5-8 20-8h18q8 0 10 6l6-12h6l-4 5-6 9q-4 6-12 6h-20q-14 0-18-6zM177 36l-6 11M183 36l-2 11M201 36l6 10M207 35l9 6M219 16l-2-8M218 11l-4-2M221 15l4-8M223 11l4-1"/>
+              <path d="M230 30q5-8 20-8h18q8 0 10 6l6-12h6l-4 5-6 9q-4 6-12 6h-20q-14 0-18-6zM242 36l-8 10M248 36l-4 11M266 36l8 9M272 35l8 7M284 16l-2-8M283 11l-4-2M286 15l4-8M288 11l4-1"/>
+            </g>
+            <circle fill="#ff2a6d" stroke="#ff2a6d" cx="291" cy="17" r="2"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </div>
   <div class="snow" id="snow" aria-hidden="true">
     <div class="snow-layer"><div class="snow-fall"></div></div>
     <div class="snow-layer"><div class="snow-fall"></div></div>
     <div class="snow-layer"><div class="snow-fall"></div></div>
-  </div>
-  <div class="streaks" aria-hidden="true">
-    <span></span><span></span><span></span><span></span><span></span>
   </div>
   <svg class="garland" id="garland" aria-hidden="true" preserveAspectRatio="none"></svg>
 
@@ -64,13 +104,15 @@
       <div class="reveal-flash" aria-hidden="true"></div>
 
       <button class="big-gift" id="big-gift" type="button" aria-label="Ouvrir le cadeau">
-        <span class="bg-lid">
-          <span class="ribbon ribbon-v"></span>
-          <svg class="bow" viewBox="0 0 64 32" aria-hidden="true"><path d="M32 16C22 2 6 4 8 14s16 8 24 2zM32 16c10-14 26-12 24-2s-16 8-24 2z"/><circle cx="32" cy="16" r="4.5"/></svg>
-        </span>
-        <span class="bg-body">
-          <span class="ribbon ribbon-v"></span>
-          <span class="bg-num" id="big-num"></span>
+        <span class="bg-shake">
+          <span class="bg-lid">
+            <span class="ribbon ribbon-v"></span>
+            <svg class="bow" viewBox="0 0 64 32" aria-hidden="true"><path d="M32 16C22 2 6 4 8 14s16 8 24 2zM32 16c10-14 26-12 24-2s-16 8-24 2z"/><circle cx="32" cy="16" r="4.5"/></svg>
+          </span>
+          <span class="bg-body">
+            <span class="ribbon ribbon-v"></span>
+            <span class="bg-num" id="big-num"></span>
+          </span>
         </span>
       </button>
       <p class="reveal-hint" aria-hidden="true">Clique sur le cadeau pour l'ouvrir</p>

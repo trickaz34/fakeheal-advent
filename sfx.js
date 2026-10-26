@@ -1,7 +1,7 @@
 // Effets sonores de l'ouverture, synthétisés en direct (Web Audio), aucun fichier audio.
 // appear  : le cadeau apparaît (whoosh + petit « bloop »)
 // jingle  : grelots quand le cadeau gigote
-// charge  : montée en tension quand on clique sur le cadeau
+// drumroll: roulement de tambour après le clic sur le cadeau (montée en tension)
 // burst   : ouverture (impact + carillon, plus riche selon la rareté)
 
 window.XmasSfx = (() => {
@@ -112,27 +112,58 @@ window.XmasSfx = (() => {
     bell(freq(96 + [0, 4, 7][(Math.random() * 3) | 0]), t + 0.02, 0.018, 0.6);
   }
 
-  function charge(dur = 0.7) {
+  // Coup de caisse claire : bruit filtré + petite note grave pour le corps du fût.
+  function snare(t, vol) {
+    noise(t, 0.08, { type: "bandpass", f0: 2600, q: 0.8, vol, attack: 0.002, wet: false });
+    tone(185, t, 0.06, { type: "triangle", vol: vol * 0.45, attack: 0.002, wet: false });
+  }
+
+  // Roulement de tambour qui accélère et monte en volume, sur un grondement grave,
+  // puis s'arrête net `gap` secondes avant l'ouverture (silence dramatique).
+  function drumroll(dur = 2.6, gap = 0.18) {
     const t = ensure();
-    // nappe qui monte
+    const end = t + dur - gap;
+    let time = t;
+    while (time < end) {
+      const p = (time - t) / (end - t);                     // 0 → 1
+      snare(time, 0.03 + 0.2 * p * p);
+      time += (0.085 - 0.048 * p) * (0.9 + Math.random() * 0.2);
+    }
+
+    // grondement de timbale qui enfle
     const o = ctx.createOscillator();
-    o.type = "sawtooth";
-    o.frequency.setValueAtTime(110, t);
-    o.frequency.exponentialRampToValueAtTime(440, t + dur);
-    const lp = ctx.createBiquadFilter();
-    lp.type = "lowpass";
-    lp.frequency.setValueAtTime(300, t);
-    lp.frequency.exponentialRampToValueAtTime(4000, t + dur);
+    o.type = "sine";
+    o.frequency.setValueAtTime(52, t);
+    o.frequency.linearRampToValueAtTime(64, end);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.07, t + dur * 0.9);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
-    o.connect(lp).connect(g);
-    out(g);
+    g.gain.linearRampToValueAtTime(0.28, end - 0.02);
+    g.gain.linearRampToValueAtTime(0.0001, end + 0.03);
+    o.connect(g);
+    out(g, false);
     o.start(t);
-    o.stop(t + dur + 0.1);
-    // souffle qui monte
-    noise(t, dur + 0.05, { type: "highpass", f0: 800, f1: 7000, vol: 0.1, attack: dur * 0.9 });
+    o.stop(end + 0.05);
+
+    // nappe qui monte en dessous, discrète
+    const saw = ctx.createOscillator();
+    saw.type = "sawtooth";
+    saw.frequency.setValueAtTime(90, t);
+    saw.frequency.exponentialRampToValueAtTime(360, end);
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(250, t);
+    lp.frequency.exponentialRampToValueAtTime(2600, end);
+    const sg = ctx.createGain();
+    sg.gain.setValueAtTime(0.0001, t);
+    sg.gain.exponentialRampToValueAtTime(0.045, end - 0.02);
+    sg.gain.linearRampToValueAtTime(0.0001, end + 0.03);
+    saw.connect(lp).connect(sg);
+    out(sg);
+    saw.start(t);
+    saw.stop(end + 0.05);
+
+    // souffle aigu qui monte jusqu'au silence
+    noise(t, end - t, { type: "highpass", f0: 800, f1: 7000, vol: 0.08, attack: (end - t) * 0.95 });
   }
 
   const ARPEGGIO = [84, 88, 91, 96, 100, 103, 108];   // do-mi-sol en montant
@@ -141,9 +172,10 @@ window.XmasSfx = (() => {
   function burst(rarity = "rare") {
     const t = ensure();
 
-    // impact
+    // impact + cymbale crash
     tone(160, t, 0.6, { vol: 0.5, glideTo: 38, attack: 0.003, wet: false });
     noise(t, 0.45, { type: "lowpass", f0: 3500, f1: 400, vol: 0.22, attack: 0.003 });
+    noise(t, 1.9, { type: "highpass", f0: 6000, f1: 4500, vol: 0.13, attack: 0.004 });
 
     // carillon montant
     const n = NOTES_BY_RARITY[rarity] || 4;
@@ -191,5 +223,5 @@ window.XmasSfx = (() => {
     if (ctx) master.gain.setTargetAtTime(volume, ctx.currentTime, 0.05);
   }
 
-  return { appear, jingle, charge, burst, setVolume };
+  return { appear, jingle, drumroll, burst, setVolume };
 })();

@@ -11,6 +11,16 @@
   const LAYOUT = [7, 18, 3, 1, 11, 15, 9, 21, 5, 13, 20, 2, 16, 24, 10, 23, 6, 14, 19, 4, 22, 8, 17, 12];
   const BIG_DAYS = new Set([1, 24]);
 
+  // Couleurs néon des cases : [tube autour de la boîte, ruban]
+  const NEON = { red: "#ff2a6d", green: "#39ff88", cyan: "#05d9e8", gold: "#ffd319", magenta: "#ff2bd6", white: "#fdf7ff" };
+  const GIFT_HUES = [
+    [NEON.red, NEON.gold],
+    [NEON.green, NEON.red],
+    [NEON.cyan, NEON.magenta],
+    [NEON.gold, NEON.cyan],
+    [NEON.magenta, NEON.green],
+  ];
+
   const RARITY_LABEL = {
     uncommon: "Inhabituel",
     rare: "Rare",
@@ -135,6 +145,9 @@
     btn.className = "gift" + (BIG_DAYS.has(day) ? " is-big" : "");
     btn.dataset.day = day;
     btn.style.animationDelay = `${i * 45}ms`;
+    const [tube, ribbon] = GIFT_HUES[i % GIFT_HUES.length];
+    btn.style.setProperty("--hue-tube", tube);
+    btn.style.setProperty("--hue-ribbon", ribbon);
     btn.innerHTML = `
       <span class="gift-frame"><span class="gift-face">
         <span class="ribbon ribbon-v"></span><span class="ribbon ribbon-h"></span>
@@ -246,7 +259,7 @@
 
   const reveal = $("#reveal");
   const stage = reveal.querySelector(".reveal-stage");
-  const PHASES = ["is-entering", "is-waiting", "is-shaking", "is-bursting", "is-revealed"];
+  const PHASES = ["is-entering", "is-waiting", "is-shaking", "is-shaking-hard", "is-hold", "is-bursting", "is-revealed"];
   let timers = [];
   let canClose = false;
   let lastFocus = null;
@@ -260,7 +273,9 @@
   const T_ENTER = 550;          // le cadeau apparaît
   const T_WIGGLE_CYCLE = 1800;  // un cycle « immobile puis gigote » (animation idle-wiggle)
   const T_WIGGLE_AT = 0.72;     // moment du cycle où il gigote (72 %)
-  const T_CHARGE = 700;         // tremblement après le clic, avant l'explosion
+  const T_CHARGE = 2600;        // roulement de tambour après le clic, avant l'explosion
+  const T_HARD = 0.55;          // à 55 % du roulement, le tremblement s'intensifie
+  const T_HOLD = 180;           // dernier instant : le cadeau se fige (silence), puis explose
   const T_BURST = 550;          // explosion avant l'arrivée de la carte
 
   const bigGift = $("#big-gift");
@@ -345,8 +360,22 @@
       return;
     }
 
+    // Roulement de tambour : tremblement qui s'intensifie, cadeau qui gonfle,
+    // étincelles de plus en plus nombreuses, puis un court arrêt avant l'explosion.
     setPhase("is-shaking");
-    window.XmasSfx.charge(T_CHARGE / 1000);
+    window.XmasSfx.drumroll(T_CHARGE / 1000, T_HOLD / 1000);
+    sizeCanvas(fx, fxCtx);
+    const start = performance.now();
+    const sparks = setInterval(() => {
+      const p = (performance.now() - start) / (T_CHARGE - T_HOLD);
+      if (p < 1) leak(p);
+    }, 110);
+    jingleTimers.push(sparks);   // nettoyé avec les autres minuteries de l'ouverture
+    timers.push(setTimeout(() => setPhase("is-shaking-hard"), T_CHARGE * T_HARD));
+    timers.push(setTimeout(() => {
+      clearInterval(sparks);
+      setPhase("is-hold");
+    }, T_CHARGE - T_HOLD));
     timers.push(setTimeout(() => {
       setPhase("is-bursting");
       commit();
@@ -399,10 +428,10 @@
   let fxRunning = false;
 
   const RARITY_COLORS = {
-    uncommon: "#1eff00",
-    rare: "#2f8cff",
-    epic: "#a335ee",
-    legendary: "#ff8000",
+    uncommon: "#39ff88",
+    rare: "#2fb8ff",
+    epic: "#ff2bd6",
+    legendary: "#ffd319",
   };
 
   // Neige et particules sont des lueurs floues : une résolution 1:1 suffit et
@@ -450,7 +479,7 @@
     sizeCanvas(fx, fxCtx);
     const cx = innerWidth / 2;
     const cy = innerHeight / 2;
-    const colors = ["#00f0e0", "#00c8f0", "#ffffff", "#c45cff", RARITY_COLORS[rarity] || "#00f0e0"];
+    const colors = [NEON.magenta, NEON.cyan, "#ffffff", NEON.gold, RARITY_COLORS[rarity] || NEON.magenta];
     const count = rarity === "legendary" ? 170 : 120;
 
     for (let i = 0; i < count; i++) {
@@ -477,11 +506,38 @@
         size: 5 + Math.random() * 7,
         life: 0,
         max: 90 + Math.random() * 60,
-        sprite: glowSprite(Math.random() < 0.7 ? "#00f0e0" : "#7dffb0", "plus"),
+        sprite: glowSprite(Math.random() < 0.6 ? NEON.green : NEON.cyan, "plus"),
         shape: "plus",
       });
     }
 
+    if (!fxRunning) {
+      fxRunning = true;
+      requestAnimationFrame(stepFx);
+    }
+  }
+
+  // Étincelles qui s'échappent du cadeau pendant le roulement ; p (0 → 1) = avancement.
+  function leak(p) {
+    const cx = innerWidth / 2;
+    const cy = innerHeight / 2;
+    const count = 1 + Math.round(p * p * 7);
+    const colors = [NEON.gold, NEON.magenta, "#ffffff", NEON.cyan];
+    for (let i = 0; i < count; i++) {
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;   // surtout vers le haut
+      const speed = 1.5 + Math.random() * (2 + p * 4);
+      particles.push({
+        x: cx + (Math.random() - 0.5) * 180,
+        y: cy + (Math.random() - 0.5) * 120,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 1 + Math.random() * 2,
+        life: 0,
+        max: 25 + Math.random() * 25,
+        sprite: glowSprite(colors[(Math.random() * colors.length) | 0], "spark"),
+        shape: "spark",
+      });
+    }
     if (!fxRunning) {
       fxRunning = true;
       requestAnimationFrame(stepFx);
@@ -540,9 +596,9 @@
     return c;
   }
   const sprites = [
-    makeSprite("rgba(200,240,255,0.7)"),
-    makeSprite("rgba(0,240,224,0.6)"),
-    makeSprite("rgba(196,92,255,0.5)"),
+    makeSprite("rgba(255,240,255,0.75)"),
+    makeSprite("rgba(255,110,199,0.6)"),
+    makeSprite("rgba(5,217,232,0.55)"),
   ];
 
   let snowUrls = [];
@@ -583,6 +639,116 @@
     });
   }
 
+  // ---------- Ciel étoilé ----------
+  // Deux images d'étoiles dessinées une fois : la seconde scintille en fondu (CSS).
+
+  let starUrls = [];
+
+  function buildStars() {
+    const w = innerWidth;
+    const h = Math.round(innerHeight * 0.66);
+    const layers = document.querySelectorAll(".stars-layer");
+    const tints = ["255,255,255", "255,255,255", "255,190,240", "170,240,255"];
+
+    starUrls.forEach((u) => URL.revokeObjectURL(u));
+    starUrls = [];
+
+    [Math.round((w * h) / 7000), Math.round((w * h) / 16000)].forEach((count, i) => {
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      const g = c.getContext("2d");
+      for (let n = 0; n < count; n++) {
+        const x = Math.random() * w;
+        const y = Math.pow(Math.random(), 1.4) * h;      // plus dense en haut du ciel
+        const r = i === 0 ? 0.4 + Math.random() * 0.9 : 0.8 + Math.random() * 1.3;
+        const tint = tints[(Math.random() * tints.length) | 0];
+        const alpha = (1 - y / h) * 0.8 + 0.2;
+        g.fillStyle = `rgba(${tint},${alpha})`;
+        g.beginPath();
+        g.arc(x, y, r, 0, Math.PI * 2);
+        g.fill();
+        if (i === 1) {
+          // petite croix de lumière sur les étoiles qui scintillent
+          g.fillStyle = `rgba(${tint},${alpha * 0.5})`;
+          g.fillRect(x - r * 3, y - 0.4, r * 6, 0.8);
+          g.fillRect(x - 0.4, y - r * 3, 0.8, r * 6);
+        }
+      }
+      c.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        starUrls.push(url);
+        layers[i].style.backgroundImage = `url(${url})`;
+      });
+    });
+  }
+
+  // ---------- Sapins néon ----------
+  // SVG statique (lueur par filtre, dessinée une fois). Repère : 420 x 300, pied des sapins à y = 300.
+
+  function treeSvg(x, h, color, { star = false, balls = false } = {}) {
+    const top = 300 - h;
+    const w = h * 0.62;
+    const p = (dx, dy) => `${(x + dx * w).toFixed(1)},${(top + dy * h).toFixed(1)}`;
+    const outline = [
+      p(0, 0), p(-0.3, 0.3), p(-0.16, 0.3), p(-0.4, 0.6), p(-0.22, 0.6), p(-0.5, 0.88),
+      p(0.5, 0.88), p(0.22, 0.6), p(0.4, 0.6), p(0.16, 0.3), p(0.3, 0.3),
+    ].join(" ");
+    let svg =
+      `<polygon points="${outline}" stroke="${color}"/>` +
+      `<path d="M${p(-0.07, 0.88)} L${(x - 0.07 * w).toFixed(1)},300 L${(x + 0.07 * w).toFixed(1)},300 L${p(0.07, 0.88)}" stroke="${color}"/>`;
+
+    if (balls) {
+      const spots = [[-0.12, 0.42], [0.16, 0.5], [-0.28, 0.78], [0.3, 0.76], [0.02, 0.68], [0.06, 0.25]];
+      const ballColors = [NEON.red, NEON.gold, NEON.cyan, NEON.magenta];
+      spots.forEach(([dx, dy], i) => {
+        svg += `<circle cx="${(x + dx * w).toFixed(1)}" cy="${(top + dy * h).toFixed(1)}" r="${(h * 0.018).toFixed(1)}" fill="${ballColors[i % ballColors.length]}" stroke="none"/>`;
+      });
+    }
+    if (star) {
+      const r = h * 0.07;
+      const pts = [];
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        const rr = i % 2 ? r * 0.45 : r;
+        pts.push(`${(x + Math.cos(a) * rr).toFixed(1)},${(top - r * 0.4 + Math.sin(a) * rr).toFixed(1)}`);
+      }
+      svg += `<polygon points="${pts.join(" ")}" stroke="${NEON.gold}" fill="rgba(255,211,25,0.35)"/>`;
+    }
+    return svg;
+  }
+
+  // Lignes du sol qui partent du point de fuite (centre de l'horizon) vers le bas.
+  function buildFloorFan() {
+    let lines = "";
+    for (let k = -14; k <= 14; k++) {
+      const x = 50 + k * 9;
+      lines += `<line class="glow" x1="50" y1="0" x2="${x}" y2="100"/><line x1="50" y1="0" x2="${x}" y2="100"/>`;
+    }
+    $("#floor-fan").innerHTML = lines;
+  }
+
+  function buildTrees() {
+    const filter =
+      `<defs><filter id="tree-glow" x="-30%" y="-30%" width="160%" height="160%">` +
+      `<feGaussianBlur stdDeviation="3" result="b"/>` +
+      `<feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+    // [position depuis le bord, hauteur, couleur, options]
+    const forest = [
+      [250, 110, NEON.cyan, {}],
+      [175, 165, NEON.green, { balls: true }],
+      [330, 70, NEON.magenta, {}],
+      [70, 250, NEON.green, { star: true, balls: true }],
+    ];
+    const draw = (mirror) => filter +
+      `<g filter="url(#tree-glow)" fill="none" stroke-width="2.6" stroke-linejoin="round">` +
+      forest.map(([x, h, c, o]) => treeSvg(mirror ? 420 - x : x, h, c, o)).join("") +
+      `</g>`;
+    $("#trees-left").innerHTML = draw(false);
+    $("#trees-right").innerHTML = draw(true);
+  }
+
   // ---------- Guirlande ----------
 
   function buildGarland() {
@@ -592,7 +758,7 @@
     const span = w < 600 ? 160 : 240;
     const loops = Math.max(2, Math.round(w / span));
     const seg = w / loops;
-    const colors = ["#00f0e0", "#c45cff", "#ffffff", "#2f8cff"];
+    const colors = [NEON.red, NEON.green, NEON.gold, NEON.cyan, NEON.magenta];
     // une ampoule sur 4 dans chaque groupe : 4 animations au total, quel que soit le nombre d'ampoules
     const groups = ["", "", "", ""];
     let path = `M0 4`;
@@ -774,6 +940,9 @@
   $("#year").textContent = CFG.year;
   buildGarland();
   buildSnow();
+  buildStars();
+  buildTrees();
+  buildFloorFan();
   applyDev();   // affiche le panneau si besoin et lance le premier tick
   setInterval(tick, 1000);
 
@@ -783,6 +952,7 @@
     resizeTimer = setTimeout(() => {
       buildGarland();
       buildSnow();
+      buildStars();
     }, 150);
   });
 })();
