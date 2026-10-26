@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calendrier de l'Avent · Fakeheal66</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="snow" id="snow" aria-hidden="true">
+    <div class="snow-layer"><div class="snow-fall"></div></div>
+    <div class="snow-layer"><div class="snow-fall"></div></div>
+    <div class="snow-layer"><div class="snow-fall"></div></div>
+  </div>
+  <div class="streaks" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <svg class="garland" id="garland" aria-hidden="true" preserveAspectRatio="none"></svg>
+
+  <main class="app">
+    <header class="hero">
+      <div class="logo-wrap">
+        <img class="logo" src="logo.jpg" alt="Logo Fakeheal66">
+      </div>
+      <div class="hero-text">
+        <p class="kicker">Fakeheal66 · Décembre <span id="year"></span></p>
+        <h1 class="title">Calendrier de l'Avent</h1>
+      </div>
+
+      <div class="stats">
+        <div class="chip">
+          <span class="chip-label">Cases ouvertes</span>
+          <span class="chip-value"><span id="opened-count">0</span><small>/24</small></span>
+          <span class="progress" aria-hidden="true"><span id="progress-bar"></span></span>
+        </div>
+        <div class="chip chip-countdown">
+          <span class="chip-label" id="countdown-label">Prochaine case</span>
+          <span class="chip-value digits" id="countdown">--:--:--</span>
+        </div>
+        <div class="music-ctrl">
+          <button class="music-btn" id="music-btn" type="button" aria-pressed="false" title="Musique d'ambiance">
+            <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="music-label" id="music-label">Musique</span>
+          </button>
+          <input class="music-volume" id="music-volume" type="range" min="0" max="100" step="1" value="70" aria-label="Volume (musique et effets)" title="Volume (musique et effets)">
+        </div>
+      </div>
+    </header>
+
+    <div class="board">
+      <section class="grid" id="grid" aria-label="Les 24 cases du calendrier"></section>
+    </div>
+  </main>
+
+  <div class="reveal" id="reveal" hidden>
+    <div class="reveal-backdrop" data-close></div>
+    <canvas class="reveal-fx" id="fx" aria-hidden="true"></canvas>
+    <div class="reveal-stage" role="dialog" aria-modal="true" aria-labelledby="card-title">
+      <div class="reveal-rays" aria-hidden="true"></div>
+      <div class="reveal-ring" aria-hidden="true"></div>
+      <div class="reveal-flash" aria-hidden="true"></div>
+
+      <button class="big-gift" id="big-gift" type="button" aria-label="Ouvrir le cadeau">
+        <span class="bg-lid">
+          <span class="ribbon ribbon-v"></span>
+          <svg class="bow" viewBox="0 0 64 32" aria-hidden="true"><path d="M32 16C22 2 6 4 8 14s16 8 24 2zM32 16c10-14 26-12 24-2s-16 8-24 2z"/><circle cx="32" cy="16" r="4.5"/></svg>
+        </span>
+        <span class="bg-body">
+          <span class="ribbon ribbon-v"></span>
+          <span class="bg-num" id="big-num"></span>
+        </span>
+      </button>
+      <p class="reveal-hint" aria-hidden="true">Clique sur le cadeau pour l'ouvrir</p>
+
+      <article class="card" id="card">
+        <p class="card-day" id="card-day"></p>
+        <div class="card-icon" id="card-icon"></div>
+        <p class="card-rarity" id="card-rarity"></p>
+        <h2 class="card-title" id="card-title"></h2>
+        <p class="card-detail" id="card-detail"></p>
+        <button class="btn" id="card-close" type="button" data-close>Fermer</button>
+      </article>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <aside class="devbar" id="devbar" aria-label="Mode test" hidden>
+    <div class="devbar-head">
+      <span class="devbar-title">Mode test</span>
+      <button type="button" id="dev-collapse" aria-expanded="true">Réduire</button>
+      <button type="button" id="dev-exit">Quitter</button>
+    </div>
+    <div class="devbar-body">
+      <div class="devbar-row">
+        <label>Date simulée <input type="date" id="dev-date"></label>
+        <button type="button" id="dev-today">Date réelle</button>
+      </div>
+      <label class="devbar-check"><input type="checkbox" id="dev-unlock"> Toutes les cases ouvrables</label>
+      <label class="devbar-check"><input type="checkbox" id="dev-replay"> Rejouer l'animation des cases déjà ouvertes</label>
+      <label class="devbar-check"><input type="checkbox" id="dev-motion"> Forcer les animations</label>
+      <p class="devbar-note" id="dev-motion-hint" hidden>Ton système demande de réduire les animations : laisse cette case cochée pour les voir.</p>
+      <div class="devbar-row">
+        <span>Aperçu</span>
+        <button type="button" class="q-uncommon" data-preview="uncommon">Inhabituel</button>
+        <button type="button" class="q-rare" data-preview="rare">Rare</button>
+        <button type="button" class="q-epic" data-preview="epic">Épique</button>
+        <button type="button" class="q-legendary" data-preview="legendary">Légendaire</button>
+      </div>
+      <div class="devbar-row">
+        <button type="button" id="dev-reset">Refermer toutes les cases</button>
+      </div>
+      <p class="devbar-note">Ctrl + Maj + D ou 5 clics rapides sur le logo : afficher / masquer le mode test</p>
+    </div>
+  </aside>
+
+  <script src="rewards.js"></script>
+  <script src="music.js"></script>
+  <script src="sfx.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
